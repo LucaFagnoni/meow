@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ricerca Link...</title>
+    <title>Reindirizzamento...</title>
     <style>
         body {
             background-color: #141414;
@@ -15,99 +15,53 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            text-align: center;
         }
         .loader {
             border: 4px solid #333;
             border-top: 4px solid #e50914;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+            width: 40px;
+            height: 40px;
+            animation: spin 0.8s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        p { font-size: 18px; color: #999; margin-top: 10px; }
-        .error-log { 
-            color: #ffcc00; 
-            font-family: monospace; 
-            font-size: 12px; 
-            margin-top: 20px; 
-            max-width: 80%;
-            word-wrap: break-word;
-        }
+        p { margin-top: 20px; color: #999; font-size: 16px; }
     </style>
 </head>
 <body>
 
-    <div id="status-icon" class="loader"></div>
-    <h2 id="status-text">Ricerca nuovo dominio...</h2>
-    <p id="message">Connessione al database...</p>
-    <div id="error-log" class="error-log"></div>
+    <div class="loader"></div>
+    <p id="status">Verifica disponibilità dominio...</p>
 
     <script>
         (async () => {
-            const statusText = document.getElementById('status-text');
-            const message = document.getElementById('message');
-            const errorLog = document.getElementById('error-log');
-            const statusIcon = document.getElementById('status-icon');
-            
+            const status = document.getElementById('status');
             const telegraphUrl = 'https://telegra.ph/Link-Aggiornato-StreamingCommunity-09-29';
 
-            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(telegraphUrl)}`;
-
-            const fallback = (errDetails) => {
-                statusIcon.style.display = 'none';
-                statusText.innerText = "Reindirizzamento manuale";
-                message.innerHTML = `Non riesco a leggere il link automaticamente.<br><a href="${telegraphUrl}" style="color: white; text-decoration: underline;">Clicca qui per il nuovo dominio</a>`;
-                
-                errorLog.innerText = "Dettaglio errore: " + errDetails;
-				
-                // setTimeout(() => window.location.replace(telegraphUrl), 3000);
-            };
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(telegraphUrl)}`;
 
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
 
                 const response = await fetch(proxyUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) throw new Error(`Stato HTTP: ${response.status}`);
-
-                const htmlContent = await response.text();
-
-                if (!htmlContent || htmlContent.length < 50) throw new Error("Contenuto scaricato vuoto o troppo corto");
-
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(htmlContent, "text/html");
-
-                const article = doc.querySelector('article') || doc.getElementById('_tl_editor');
                 
-                if (!article) throw new Error("Impossibile trovare il contenuto dell'articolo Telegraph");
+                if (!response.ok) throw new Error("Proxy offline");
 
-                const links = article.getElementsByTagName('a');
-                let targetUrl = null;
+                const html = await response.text();
 
-                for (let link of links) {
-                    const href = link.getAttribute('href');
-                    if (href && href.startsWith('http') && !href.includes('telegra.ph') && !href.includes('t.me')) {
-                        targetUrl = href;
-                        break; 
-                    }
-                }
+                const match = html.match(/id=["']?_tl_editor.*?href=["']?(http[^"'>]+)/s);
 
-                if (targetUrl) {
-                    statusText.innerText = "Dominio Trovato!";
-                    message.innerText = "Ingresso in corso...";
-                    window.location.replace(targetUrl);
+                if (match && match[1]) {
+                    status.innerText = "Dominio trovato! Accesso...";
+                    window.location.replace(match[1]);
                 } else {
-                    throw new Error("Nessun link valido trovato nella pagina Telegraph");
+                    throw new Error("Link non trovato");
                 }
 
-            } catch (error) {
-                console.error(error);
-                fallback(error.message);
+            } catch (e) {
+                console.error("Errore:", e);
+                status.innerHTML = `Il caricamento automatico ha fallito.<br><br><a href="${telegraphUrl}" style="color:#e50914; text-decoration:none; font-weight:bold;">CLICCA QUI PER IL LINK MANUALE</a>`;
             }
         })();
     </script>
