@@ -2,109 +2,156 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reindirizzamento...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Streaming Redirect</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: #141414;
             color: #ffffff;
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
+            overflow: hidden;
             text-align: center;
         }
-        .loader {
-            border: 4px solid #333;
-            border-top: 4px solid #e50914;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 20px;
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            padding: 20px;
+            opacity: 0;
+            animation: fadeIn 0.8s ease-out forwards;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        p { font-size: 16px; color: #888; margin-top: 10px;}
-        .status-log { font-size: 12px; color: #555; margin-top: 5px; font-family: monospace; }
-        .error { color: #e50914; font-weight: bold; font-size: 18px; }
-        a.manual-btn {
-            margin-top: 20px;
+
+        .loader-ring {
             display: inline-block;
-            background: #333;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #E50914;
+            animation: spin 0.8s ease-in-out infinite;
+            margin-bottom: 25px;
         }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+        
+        p.subtext {
+            color: #808080;
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        #fallback-box {
+            display: none;
+            background-color: #181818;
+            padding: 40px 30px;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-top: 20px;
+        }
+
+        .error-title {
+            color: #ffffff;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .error-desc {
+            color: #999;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+
+        .btn-red {
+            display: block;
+            width: 100%;
+            background-color: #E50914;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 16px 0;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-red:hover {
+            background-color: #f40612;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
     </style>
 </head>
 <body>
 
-    <div id="status-icon" class="loader"></div>
-    <h2 id="status-text">Connessione in corso...</h2>
-    <div id="log" class="status-log">Avvio proxy primario...</div>
+    <div class="container">
+        <div id="loader-view">
+            <div class="loader-ring"></div>
+            <h1 id="status-text">Ricerca server...</h1>
+            <p class="subtext">Attendi un istante</p>
+        </div>
+
+        <div id="fallback-box">
+            <div class="error-title">Impossibile connettersi</div>
+            <p class="error-desc">
+                Il sistema di reindirizzamento automatico non risponde in questo momento.
+            </p>
+            <a class="btn-red" href="https://telegra.ph/Link-Aggiornato-StreamingCommunity-09-29">
+                VAI ALLA LISTA MANUALE
+            </a>
+        </div>
+    </div>
 
     <script>
         (async () => {
+            const workerUrl = 'https://meow.luca-fagno.workers.dev/';
+
+            const loaderView = document.getElementById('loader-view');
+            const fallbackBox = document.getElementById('fallback-box');
             const statusText = document.getElementById('status-text');
-            const statusIcon = document.getElementById('status-icon');
-            const logText = document.getElementById('log');
 
-            const targetUrl = 'https://telegra.ph/Link-Aggiornato-StreamingCommunity-09-29';
-            
-            const proxies = [
-                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&timestamp=${Date.now()}`,
-                `https://cors-anywhere.herokuapp.com/${targetUrl}`
-            ];
+            const triggerFallback = () => {
+                loaderView.style.display = 'none';
+                fallbackBox.style.display = 'block';
+                fallbackBox.style.animation = 'fadeIn 0.5s ease-out';
+            };
 
-            let foundLink = null;
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-            for (let i = 0; i < proxies.length; i++) {
-                try {
-                    logText.innerText = `Tentativo con server ${i + 1} di ${proxies.length}...`;
+                await fetch(workerUrl, { 
+                    method: 'HEAD', 
+                    mode: 'no-cors', 
+                    cache: 'no-cache',
+                    signal: controller.signal 
+                });
 
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                clearTimeout(timeoutId);
 
-                    const response = await fetch(proxies[i], { signal: controller.signal });
-                    clearTimeout(timeoutId);
+                statusText.innerText = "Trovato.";
 
-                    if (!response.ok) throw new Error("Risposta server non valida");
-                    
-                    const text = await response.text();
+                window.location.replace(workerUrl);
 
-                    const match = text.match(/id=["']?_tl_editor.*?href=["']?(http[^"'>]+)/s);
-
-                    if (match && match[1]) {
-                        foundLink = match[1];
-                        break;
-                    } else {
-                        throw new Error("Pagina scaricata ma link non trovato");
-                    }
-
-                } catch (e) {
-                    console.warn(`Proxy ${i+1} fallito:`, e);
-                }
-            }
-
-            if (foundLink) {
-                statusText.innerText = "Trovato! Entro...";
-                logText.innerText = "Reindirizzamento a: " + new URL(foundLink).hostname;
-                window.location.replace(foundLink);
-            } else {
-                statusIcon.style.display = 'none';
-                logText.style.display = 'none';
-                statusText.innerHTML = "<span class='error'>Impossibile recuperare il link.</span>";
-
-                const btn = document.createElement('div');
-                btn.innerHTML = `<p>I server automatici non rispondono.</p>
-                                 <a class="manual-btn" href="${targetUrl}">Apri pagina manuale</a>`;
-                document.body.appendChild(btn);
+            } catch (error) {
+                console.warn("Connection failed:", error);
+                triggerFallback();
             }
         })();
     </script>
